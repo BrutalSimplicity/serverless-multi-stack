@@ -1,0 +1,15 @@
+service:
+  name: ''
+
+provider:
+  name: 'aws'
+
+custom:
+  multi-stack:
+    stacks:
+      serverless.test.1.yml:
+      serverless.test.2.yml:
+    regions:
+      us-east-1:
+        serverless.test.3.uml:
+      us-west-2:
