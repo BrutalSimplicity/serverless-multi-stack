@@ -1,6 +1,6 @@
-import * as Serverless from 'serverless';
 import { existsSync } from 'fs';
 import assert from 'assert';
+import _ from 'lodash';
 
 export interface Properties {
   [props: string]: string;
@@ -29,17 +29,16 @@ export interface MultiStackConfig {
   }
 }
 
-export type ServerlessOptions = Serverless.Options & { [key: string]: any };
-
 export function toConfig(settings: any): MultiStackConfig | undefined {
   if (!settings) return undefined;
   assert(settings.stacks, '[stacks] is a required field');
   assert(settings.regions, '[regions] is a required field');
 
-  const stacks = Object.keys(settings.stacks)
-    .reduce((stacks, stackLocation) => {
-      assert(existsSync(stackLocation), `unable to locate ${stackLocation}`);
-      stacks[stackLocation] = settings.stacks[stackLocation];
+  const stacks = _(settings.stacks)
+    .map((o, k) => [k, o])
+    .reduce((stacks, [location, stack]) => {
+      assert(existsSync(location), `unable to locate ${location}`);
+      stacks[location] = stack;
       return stacks;
     }, {} as StacksConfig)
 

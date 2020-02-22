@@ -1,16 +1,16 @@
 import AwsProvider from 'serverless/plugins/aws/provider/awsProvider';
 import * as Serverless from 'serverless';
 import * as Plugin from 'serverless/classes/Plugin';
-import { ServerlessOptions, MultiStackConfig } from './models';
+import { MultiStackConfig } from './models';
 
 class MultiStackPlugin implements Plugin {
   readonly serverless: Serverless;
   readonly provider: AwsProvider;
-  readonly options: ServerlessOptions;
+  readonly options: Serverless.Options;
   readonly hooks: Plugin.Hooks;
   static started = false;
 
-  constructor(serverless: Serverless, options: ServerlessOptions) {
+  constructor(serverless: Serverless, options: Serverless.Options) {
     this.serverless = serverless;
     this.provider = serverless.getProvider('aws');
     this.options = options;
