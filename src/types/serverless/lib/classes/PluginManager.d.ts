@@ -1,4 +1,4 @@
-import Serverless = require("../index");
+import Serverless = require("../../index");
 import Plugin = require("./Plugin");
 
 declare class PluginManager {
@@ -9,13 +9,16 @@ declare class PluginManager {
 
     loadConfigFile(): Promise<void>;
     addPlugin(plugin: Plugin.PluginStatic): void;
-    loadAllPlugins(servicePlugins: {}): void;
+    loadAllPlugins(servicePlugins: {}): Promise<void>;
     loadPlugins(plugins: {}): void;
     loadCorePlugins(): void;
     loadServicePlugins(servicePlugins: {}): void;
     loadCommand(pluginName: string, details: {}, key: string): {};
     loadCommands(pluginInstance: Plugin): void;
     spawn(commandsArray: string | string[], options?: any): Promise<void>;
+    getPlugins(): Plugin[];
+    getCommands(): Plugin.Commands;
+    updateAutocompleteCacheFile(): Promise<void>;
 
     cliOptions: {};
     cliCommands: {};

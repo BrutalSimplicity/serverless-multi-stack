@@ -1,4 +1,4 @@
-import Serverless = require('../index');
+import Serverless = require('../../index');
 
 declare namespace Plugin {
     interface Hooks {

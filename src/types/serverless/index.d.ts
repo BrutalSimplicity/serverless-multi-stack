@@ -5,12 +5,13 @@
 //                 Alex Pavlenko <https://github.com/a-pavlenko>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
 
-import Service = require('./classes/Service');
-import Plugin = require('./classes/Plugin');
-import PluginManager = require('./classes/PluginManager');
-import Utils = require('./classes/Utils');
-import YamlParser = require('./classes/YamlParser');
-import AwsProvider = require('./plugins/aws/provider/awsProvider');
+import Service = require('./lib/classes/Service');
+import Plugin = require('./lib/classes/Plugin');
+import PluginManager = require('./lib/classes/PluginManager');
+import Utils = require('./lib/classes/Utils');
+import YamlParser = require('./lib/classes/YamlParser');
+import AwsProvider = require('./lib/plugins/aws/provider/awsProvider');
+import { Commands } from './lib/classes/Plugin';
 
 declare namespace Serverless {
     interface Options {
@@ -61,12 +62,16 @@ declare class Serverless {
     getVersion(): string;
 
     cli: {
-        log(message: string): null;
+        log(message: string): void;
+        setLoadedPlugins(plugins: Plugin[]): void;
+        setLoadedCommands(commands: Commands): void;
     };
 
     providers: {};
     utils: Utils;
-    variables: {};
+    variables: {
+        populateService(options: Serverless.Options): Promise<void>;
+    };
     yamlParser: YamlParser;
     pluginManager: PluginManager;
 
@@ -76,7 +81,7 @@ declare class Serverless {
     service: Service;
     version: string;
     processedInput: {
-        commands: string[],
+        commands: Plugin.Commands,
         options: Serverless.Options
     }
 }

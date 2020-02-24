@@ -1,4 +1,4 @@
-import Serverless = require("../index");
+import Serverless = require("../../index");
 
 declare namespace Service {
     interface Custom {
@@ -8,6 +8,7 @@ declare namespace Service {
 
 declare class Service {
     custom: Service.Custom;
+    plugins: Plugin[];
 
     provider: {
       compiledCloudFormationTemplate: {
@@ -38,6 +39,7 @@ declare class Service {
     getEventInFunction(eventName: string, functionName: string): Serverless.Event;
     getAllEventsInFunction(functionName: string): Serverless.Event[];
 
+    mergeArrays(): void;
     mergeResourceArrays(): void;
     validate(): Service;
 
