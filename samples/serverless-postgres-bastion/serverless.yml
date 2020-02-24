@@ -1,0 +1,19 @@
+service:
+  name: serverless-postgres-bastion-base
+
+provider:
+  name: aws
+
+plugins:
+  - ./node_modules/serverless-multi-stack/dist/serverless-multi-stack
+
+custom:
+  multi-stack:
+    stacks:
+      ./stacks/serverless-vpc.yml:
+      ./stacks/serverless-gateways.yml:
+      ./stacks/serverless-postgres.yml:
+
+    regions:
+      us-east-1:
+      us-west-2:

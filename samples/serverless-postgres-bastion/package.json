@@ -1,0 +1,15 @@
+{
+  "name": "postgres-bastion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "sls deploy -v"
+  },
+  "devDependencies": {
+    "serverless": "^1.64.0",
+    "serverless-multi-stack": "file:../../"
+  },
+  "author": "",
+  "license": "ISC"
+}
