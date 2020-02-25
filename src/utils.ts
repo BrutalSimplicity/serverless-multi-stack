@@ -1,6 +1,10 @@
-import Serverless from 'serverless';
+import Serverless, { Options } from 'serverless';
 import PluginManager from 'serverless/lib/classes/PluginManager';
 import _ from 'lodash';
+import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhases } from './models';
+import { execSync } from 'child_process';
+import { AssertionError } from 'assert';
+import { assert } from 'console';
 
 const reload = _.curry(async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Reloading config.....');
@@ -72,5 +76,29 @@ const printServiceHeader = _.curry((serverless: Serverless): Serverless => {
   return serverless;
 });
 
+const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+  if (!entryPoint) return;
+  if (entryPoint.type === 'shell') {
+    executeShellEntryPoint(phase, entryPoint, options, serverless);
+  }
+  else if (entryPoint.type === 'handler') {
+    await executeHandlerEntryPoint(phase, entryPoint, options, stacks, serverless);
+  }
+});
 
-export { reload, deploy, remove, restore, saveStack, printServiceHeader };
+const executeShellEntryPoint = (phase: LifecyclePhases, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
+  const optionExports = _(options).map((opt, key) => `SLS_OPTS_${key}=${JSON.stringify(opt)}`).join('\n'); 
+  const shell = `${optionExports}\n${entryPoint.shell}`;
+  const result = execSync(shell, { stdio: 'inherit', encoding: 'utf8' });
+
+  options.shellResults = options.shellResults || {};
+  options.shellResults[serverless.service.getServiceName()][phase] = result;
+}
+
+const executeHandlerEntryPoint = async (phase: LifecyclePhases, entryPoint: HandlerEntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+  const [path, handler] = entryPoint.handler.split('.');
+  return import(path)
+    .then(module => module[handler](serverless, options, stacks));
+}
+
+export { reload, deploy, remove, restore, saveStack, printServiceHeader, handleEntryPoint };

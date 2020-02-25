@@ -21,12 +21,14 @@ const multiStack = {
           setting1: true,
           setting2: false,
           beforeRemove: {
+            type: 'shell',
             shell: 'echo test'
           }
         },
         'serverless.2.yml': {},
         'serverless.3.yml': {
           afterDeploy: {
+            type: 'handler',
             handler: 'afterDeploy.handler'
           }
         }

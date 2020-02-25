@@ -4,7 +4,7 @@ import Plugin from 'serverless/lib/classes/Plugin';
 import { toConfig, MultiStackConfig } from './models';
 import _ from 'lodash';
 import './lodash-async';
-import { reload, restore, deploy, saveStack, printServiceHeader, remove } from './utils';
+import { reload, restore, deploy, saveStack, printServiceHeader, remove, handleEntryPoint } from './utils';
 
 const CONFIG_SECTION = 'multi-stack';
 
@@ -13,18 +13,22 @@ class MultiStackPlugin implements Plugin {
   readonly provider: AwsProvider;
   readonly options: Serverless.Options;
   readonly hooks: Plugin.Hooks;
-  readonly settings: MultiStackConfig;
+  settings: MultiStackConfig;
   static started = false;
 
   constructor(serverless: Serverless, options: Serverless.Options) {
     this.serverless = serverless;
     this.provider = serverless.getProvider('aws');
     this.options = options;
-    this.settings = toConfig(this.serverless.service?.custom?.[CONFIG_SECTION]);
     this.hooks = {
+      'before:deploy:deploy': this.configureSettings.bind(this),
       'after:deploy:deploy': this.deployStacks.bind(this),
       'before:remove:remove': this.removeStacks.bind(this)
     }
+  }
+
+  async configureSettings() {
+    this.settings = await toConfig(this.serverless.service?.custom?.[CONFIG_SECTION]);
   }
 
   async deployStacks() {
@@ -42,7 +46,9 @@ class MultiStackPlugin implements Plugin {
         reload(this.options),
         printServiceHeader,
         saveStack(stacks),
+        handleEntryPoint('beforeDeploy', stack.beforeDeploy, this.options, stacks),
         deploy,
+        handleEntryPoint('afterDeploy', stack.beforeDeploy, this.options, stacks),
       )(this.serverless);
     }
 
