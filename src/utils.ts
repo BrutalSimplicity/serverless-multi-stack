@@ -3,8 +3,6 @@ import PluginManager from 'serverless/lib/classes/PluginManager';
 import _ from 'lodash';
 import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhases } from './models';
 import { execSync } from 'child_process';
-import { AssertionError } from 'assert';
-import { assert } from 'console';
 
 const reload = _.curry(async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Reloading config.....');
@@ -77,13 +75,14 @@ const printServiceHeader = _.curry((serverless: Serverless): Serverless => {
 });
 
 const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
-  if (!entryPoint) return;
+  if (!entryPoint) return serverless;
   if (entryPoint.type === 'shell') {
     executeShellEntryPoint(phase, entryPoint, options, serverless);
   }
   else if (entryPoint.type === 'handler') {
     await executeHandlerEntryPoint(phase, entryPoint, options, stacks, serverless);
   }
+  return serverless;
 });
 
 const executeShellEntryPoint = (phase: LifecyclePhases, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
@@ -97,8 +96,10 @@ const executeShellEntryPoint = (phase: LifecyclePhases, entryPoint: ShellEntryPo
 
 const executeHandlerEntryPoint = async (phase: LifecyclePhases, entryPoint: HandlerEntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
   const [path, handler] = entryPoint.handler.split('.');
-  return import(path)
+  return importDynamic(path)
     .then(module => module[handler](serverless, options, stacks));
 }
+
+export const importDynamic = (path: string) => import(path);
 
 export { reload, deploy, remove, restore, saveStack, printServiceHeader, handleEntryPoint };

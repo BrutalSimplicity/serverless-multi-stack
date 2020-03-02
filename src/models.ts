@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import assert from 'assert';
 import _ from 'lodash';
+import { handleEntryPoint, importDynamic } from './utils';
 
 export interface Properties {
   [props: string]: any;
@@ -21,14 +22,18 @@ export interface ShellEntryPoint  {
 export type EntryPoint = HandlerEntryPoint | ShellEntryPoint;
 
 export type LifecyclePhases = 'beforeDeploy' | 'afterDeploy' | 'beforeRemove' | 'afterRemove';
+export const LifecyclePhases = ['beforeDeploy', 'afterDeploy', 'beforeRemove', 'afterRemove'];
 
 export type LifecycleEntryPoint = {
   [key in LifecyclePhases]?: EntryPoint;
 }
 
+export type StackProps = Properties & LifecycleEntryPoint;
+
 export interface StacksConfig {
-  [stackLocation: string]: Properties & LifecycleEntryPoint;
+  [stackLocation: string]: StackProps;
 }
+
 
 export interface MultiStackConfig {
   stacks: StacksConfig;
@@ -37,29 +42,26 @@ export interface MultiStackConfig {
   }
 }
 
-export async function toConfig(settings: any): Promise<MultiStackConfig | undefined> {
+export async function toConfig(settings: any) : Promise<MultiStackConfig | undefined> {
   if (!settings) return undefined;
   assert(settings.stacks, '[stacks] is a required field');
   assert(settings.regions, '[regions] is a required field');
 
   const stacks = {} as StacksConfig;
-  for (const [location, stack] of Object.entries(stacks)) {
+  for (const [location, stack] of Object.entries(settings.stacks)) {
     assert(existsSync(location), `unable to locate ${location}`);
-    stacks[location] = stack;
-    await validateEntryPoints(stack);
+    stacks[location] = await toStackProps(stack);
   }
   
   const regions = {} as { [region: string]: StacksConfig };
-  for (const [region, stacks] of Object.entries(settings.regions)) {
-    const stacksEntity = stacks as StacksConfig;
-    if (stacksEntity) {
-      for (const [location, stack] of Object.entries(stacks)) {
+  for (const [region, stacks] of Object.entries<StacksConfig>(settings.regions)) {
+    if (stacks) {
+      for (const [location, props] of Object.entries(stacks)) {
         assert(existsSync(location), `unable to locate ${location}`);
-        stacksEntity[location] = stack;
-        await validateEntryPoints(stack);
+        stacks[location] = await toStackProps(props);
       }
     }
-    regions[region] = stacksEntity;
+    regions[region] = stacks;
   }
 
   return {
@@ -68,22 +70,32 @@ export async function toConfig(settings: any): Promise<MultiStackConfig | undefi
   } as MultiStackConfig;
 }
 
-async function validateEntryPoints(stack: Properties & LifecycleEntryPoint) {
-  for (const [key, val] of Object.entries(stack)) {
-    const entryPoint = val as EntryPoint;
-    if (entryPoint) {
-      if (entryPoint.type === 'handler') {
-        assert(entryPoint.handler, `[handler] is a requried field for ${key}`);
-        const [path, handler] = entryPoint.handler.split('.');
-        const module = await import(path);
+async function toStackProps(props: any): Promise<StackProps> {
+  const stackProps = {} as StackProps;
+  for (const [key, obj] of Object.entries<any>(props)) {
+    stackProps[key] = obj;
+    if (obj && LifecyclePhases.includes(key)) {
+      if (obj.handler) {
+        assert(obj.handler, `[handler] is a requried field for ${key}`);
+        const [path, handler] = obj.handler.split('.');
+        const module = await importDynamic(path);
         assert(module, `[handler] unable to find module for ${key}`);
         assert(module[handler], `[handler] unable to resolve module handler for ${key}. Be sure the method has been exported.`);
+        stackProps[key] = {
+          type: 'handler',
+          handler: obj.handler
+        } as HandlerEntryPoint;
       }
-      else if (entryPoint.type === 'shell') {
-        assert(entryPoint.shell, `[shell] is a requried field for ${key}`);
+      else if (obj.shell) {
+        assert(obj.shell, `[shell] is a requried field for ${key}`);
+        stackProps[key] = {
+          type: 'shell',
+          shell: obj.shell
+        } as ShellEntryPoint;
       }
     }
   }
+  return stackProps;
 }
 
 

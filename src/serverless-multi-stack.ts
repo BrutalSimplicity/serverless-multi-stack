@@ -48,7 +48,7 @@ class MultiStackPlugin implements Plugin {
         saveStack(stacks),
         handleEntryPoint('beforeDeploy', stack.beforeDeploy, this.options, stacks),
         deploy,
-        handleEntryPoint('afterDeploy', stack.beforeDeploy, this.options, stacks),
+        handleEntryPoint('afterDeploy', stack.afterDeploy, this.options, stacks),
       )(this.serverless);
     }
 

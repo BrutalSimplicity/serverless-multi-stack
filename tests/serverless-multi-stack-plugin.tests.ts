@@ -1,71 +1,37 @@
 import { AssertionError } from 'assert';
-import { expect } from 'chai';
+import { expect, use } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
+import sinon from 'sinon';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import _ from 'lodash';
 import '../src/lodash-async';
 import Serverless from 'serverless';
-import sinon from 'sinon';
-import { MultiStackConfig, toConfig } from '../src/models';
+import { toConfig } from '../src/models';
+import * as utils from '../src/utils';
+import { multiStack, stacks } from './fixtures';
 import MultiStackPlugin from '../src/serverless-multi-stack';
+import PluginManager from 'serverless/lib/classes/PluginManager';
 
-const multiStack = {
-  service: 'multi-stack',
-  provider: {
-    name: 'aws'
-  },
-  custom: {
-    'multi-stack': {
-      stacks: {
-        'serverless.1.yml': {
-          setting1: true,
-          setting2: false,
-          beforeRemove: {
-            type: 'shell',
-            shell: 'echo test'
-          }
-        },
-        'serverless.2.yml': {},
-        'serverless.3.yml': {
-          afterDeploy: {
-            type: 'handler',
-            handler: 'afterDeploy.handler'
-          }
-        }
-      },
-      regions: {
-        'us-east-1': {}
-      }
-    } as MultiStackConfig
-  }
-};
-const stacks = {
-  'serverless.1.yml': {
-    service: 'service-1',
-    provider: {
-      name: 'aws'
-    }
-  },
-  'serverless.2.yml': {
-    service: 'service-2',
-    provider: {
-      name: 'aws'
-    }
-  },
-  'serverless.3.yml': {
-    service: 'service-3',
-    provider: {
-      name: 'aws'
-    }
-  }
-};
+use(chaiAsPromised);
+const mockHandler = sinon.fake();
 
 describe('MultiStackPlugin', function () {
-  describe('should throw when config is invalid', function () {
+  beforeEach(function() {
+    sinon.replace(utils, 'importDynamic', s => Promise.resolve({
+      handler: mockHandler
+    }));
+  })
+
+  afterEach(function() {
+    sinon.restore();
+  })
+
+  describe('should fail when config is invalid', function () {
     let tests =
       [
         {
-          name: 'should throw when missing region',
+          name: 'should fail when missing region',
           input: {
             stacks: {
               'serverless.1.yml': {},
@@ -74,11 +40,11 @@ describe('MultiStackPlugin', function () {
           }
         },
         {
-          name: 'should throw when config not provided',
+          name: 'should fail when config not provided',
           input: {}
         },
         {
-          name: 'should throw when required param is misspelled',
+          name: 'should fail when required param is misspelled',
           input: {
             staks: {
               'serverless.1.yml': {},
@@ -87,7 +53,7 @@ describe('MultiStackPlugin', function () {
           }
         },
         {
-          name: 'should throw when files don\'t exist',
+          name: 'should fail when files don\'t exist',
           input: {
             stacks: {
               'serverless.1.yml': {},
@@ -100,10 +66,34 @@ describe('MultiStackPlugin', function () {
         }
       ];
 
-    tests.forEach(test => {
-      it(test.name, function () {
-        expect(() => toConfig(test.input)).to.throw(AssertionError);
+    for (const [_, test] of Object.entries(tests)) {
+      it(test.name, async function () {
+        await expect(toConfig(test.input)).to.be.rejectedWith(AssertionError);
       })
+    }
+
+    it('should fail when region stack does not exist', async function() {
+      const stacks = _(multiStack).cloneDeep() as any;
+      stacks.custom["multi-stack"].regions['us-east-1']['serverless.4.yml'] = {};
+
+      await expect(toConfig(stacks.custom['multi-stack'])).to.be.rejectedWith(AssertionError);
+    })
+
+  })
+
+  describe('should return validated config', async function() {
+    it('should return valid config for shell entry point', async function() {
+      sinon.stub(fs, 'existsSync').returns(true);
+
+      const testMultiStack = _(multiStack).cloneDeep() as any;
+
+      delete testMultiStack.custom["multi-stack"].stacks['serverless.3.yml'];
+
+      const config = await toConfig(testMultiStack.custom['multi-stack']);
+
+      expect(config).to.not.be.empty;
+      expect(config.stacks['serverless.1.yml'].beforeRemove).to.not.be.empty;
+      expect(config.stacks['serverless.1.yml'].beforeRemove.type).to.equal('shell');
     })
   })
 
@@ -158,18 +148,15 @@ describe('MultiStackPlugin', function () {
       await serverless.service.load(options);
     })
 
-    it('should throw when region stack does not exist', function() {
-      const stacks = _(multiStack).cloneDeep();
-      stacks.custom["multi-stack"].regions['us-east-1']['serverless.4.yml'] = {};
-
-      expect(() => toConfig(stacks.custom['multi-stack'])).to.throw(AssertionError);
-    })
-
-    it('should map valid MultiStackConfig', function () {
+    it('should map valid MultiStackConfig', async function () {
       expect(serverless.service.custom?.['multi-stack']).to.not.be.null;
 
-      const config = toConfig(serverless.service.custom['multi-stack']);
-      expect(config).to.deep.equal(multiStack.custom['multi-stack']);
+      const expected = _(serverless.service.custom['multi-stack']).cloneDeep() as any;
+      expected.stacks['serverless.1.yml'].beforeRemove.type = 'shell';
+      expected.stacks['serverless.3.yml'].afterDeploy.type = 'handler';
+
+      const config = await toConfig(serverless.service.custom['multi-stack']);
+      expect(config).to.deep.equal(expected);
     })
 
     it('should have valid plugin configuration', function() {
@@ -183,22 +170,20 @@ describe('MultiStackPlugin', function () {
     it('should call deploy for each stack', async function() {
       const plugin = new MultiStackPlugin(serverless, options);
 
-      const stacks = [] as Serverless[];
-      serverless.pluginManager.spawn = (__) => { stacks.push(_(serverless).cloneDeep()); return Promise.resolve() };
+      const callback = sinon.fake();
+      PluginManager.prototype.spawn = callback;
+
       serverless.cli = {
         log: (_) => {},
         setLoadedCommands: (_) => {},
         setLoadedPlugins: (_) => {}
       };
 
+      await plugin.configureSettings();
       await plugin.deployStacks();
 
-      expect(stacks).length(3);
-      _(stacks)
-      .zip(['service-1', 'service-2', 'service-3'])
-      .forEach(pair => {
-        expect(pair[0].service.getServiceName()).to.equal(pair[1]);
-      })
+      expect(callback.calledThrice).to.be.true;
+      expect(mockHandler.calledOnce).to.be.true;
     })
 
     after('destroy serverless stacks', function () {
