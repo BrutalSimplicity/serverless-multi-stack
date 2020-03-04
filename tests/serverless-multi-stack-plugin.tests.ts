@@ -2,7 +2,9 @@ import { AssertionError } from 'assert';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import sinon from 'sinon';
+import sinonChai from 'sinon-chai';
 import fs from 'fs';
+import cp from 'child_process';
 import yaml from 'js-yaml';
 import _ from 'lodash';
 import '../src/lodash-async';
@@ -14,7 +16,8 @@ import MultiStackPlugin from '../src/serverless-multi-stack';
 import PluginManager from 'serverless/lib/classes/PluginManager';
 
 use(chaiAsPromised);
-const mockHandler = sinon.fake();
+use(sinonChai);
+const mockHandler = sinon.fake.returns(true);
 
 describe('MultiStackPlugin', function () {
   beforeEach(function() {
@@ -92,8 +95,8 @@ describe('MultiStackPlugin', function () {
       const config = await toConfig(testMultiStack.custom['multi-stack']);
 
       expect(config).to.not.be.empty;
-      expect(config.stacks['serverless.1.yml'].beforeRemove).to.not.be.empty;
-      expect(config.stacks['serverless.1.yml'].beforeRemove.type).to.equal('shell');
+      expect(config.stacks['serverless.1.yml'].beforeDeploy).to.not.be.empty;
+      expect(config.stacks['serverless.1.yml'].beforeDeploy.type).to.equal('shell');
     })
   })
 
@@ -152,7 +155,7 @@ describe('MultiStackPlugin', function () {
       expect(serverless.service.custom?.['multi-stack']).to.not.be.null;
 
       const expected = _(serverless.service.custom['multi-stack']).cloneDeep() as any;
-      expected.stacks['serverless.1.yml'].beforeRemove.type = 'shell';
+      expected.stacks['serverless.1.yml'].beforeDeploy.type = 'shell';
       expected.stacks['serverless.3.yml'].afterDeploy.type = 'handler';
 
       const config = await toConfig(serverless.service.custom['multi-stack']);
@@ -182,8 +185,55 @@ describe('MultiStackPlugin', function () {
       await plugin.configureSettings();
       await plugin.deployStacks();
 
-      expect(callback.calledThrice).to.be.true;
-      expect(mockHandler.calledOnce).to.be.true;
+      expect(callback).to.have.been.calledThrice;
+      expect(mockHandler).to.have.been.calledOnce;
+    })
+
+    it('should call entryPoint handler', async function() {
+      // need to setup our own fakes here... I know it's a mess!
+      sinon.restore();
+      const plugin = new MultiStackPlugin(serverless, options);
+
+      const callback = sinon.fake();
+      PluginManager.prototype.spawn = callback;
+
+      serverless.cli = {
+        log: (_) => {},
+        setLoadedCommands: (_) => {},
+        setLoadedPlugins: (_) => {}
+      };
+
+      const spy = sinon.spy(utils, 'handleEntryPoint');
+
+      await plugin.configureSettings();
+      await plugin.deployStacks();
+
+      // the final call to the handler should inject additional properties
+      // on the options object
+      const opts = spy.args[spy.args.length-1][2];
+      expect(opts.handlerCalled).to.be.true;
+      expect(opts.stacks).to.not.be.empty;
+      expect(opts.serverless).to.not.be.empty;
+    })
+
+    it('should call shell handler', async function() {
+      const plugin = new MultiStackPlugin(serverless, options);
+
+      const callback = sinon.fake();
+      PluginManager.prototype.spawn = callback;
+
+      serverless.cli = {
+        log: (_) => {},
+        setLoadedCommands: (_) => {},
+        setLoadedPlugins: (_) => {}
+      };
+
+      const spy = sinon.spy(cp, 'execSync');
+
+      await plugin.configureSettings();
+      await plugin.deployStacks();
+
+      expect(spy.calledOnce).to.be.true;
     })
 
     after('destroy serverless stacks', function () {

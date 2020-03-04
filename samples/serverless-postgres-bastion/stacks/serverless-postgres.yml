@@ -38,7 +38,7 @@ resources:
       Properties:
         MasterUsername: ${env:PG_USER, ''}
         MasterUserPassword: ${env:PG_PASSWORD, ''}
-        DBClusterIdentifier: sqs-mayhem-cluster
+        DBClusterIdentifier: sample-postgres-cluster
         Engine: aurora-postgresql
         EngineVersion: "10.7"
         EngineMode: serverless

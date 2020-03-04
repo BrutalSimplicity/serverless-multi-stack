@@ -3,12 +3,14 @@ import PluginManager from 'serverless/lib/classes/PluginManager';
 import _ from 'lodash';
 import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhases } from './models';
 import { execSync } from 'child_process';
+import { cwd } from 'process';
 
-const reload = _.curry(async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
+export const reload = _.curry(async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Reloading config.....');
   serverless.pluginManager = new PluginManager(serverless);
   const service = serverless.service;
   const pluginManager = serverless.pluginManager;
+  serverless.processedInput.options = options;
 
   await pluginManager.loadConfigFile()
     .then(() => service.load(options))
@@ -34,25 +36,25 @@ const reload = _.curry(async (options: Serverless.Options, serverless: Serverles
   return serverless;
 });
 
-const deploy = _.curry(async (serverless: Serverless): Promise<Serverless> => {
+export const deploy = _.curry(async (serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Deploying....');
   await serverless.pluginManager.spawn('deploy');
   return serverless;
 });
 
-const remove = _.curry(async (serverless: Serverless): Promise<Serverless> => {
+export const remove = _.curry(async (serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Removing....');
   await serverless.pluginManager.spawn('remove');
   return serverless;
 });
 
-const saveStack = _.curry((stacks: Serverless[], serverless: Serverless): Serverless => {
+export const saveStack = _.curry((stacks: Serverless[], serverless: Serverless): Serverless => {
   const copy = _.cloneDeep(serverless);
   stacks.push(copy);
   return serverless;
 })
 
-const restore = _.curry((copy: any, serverless: any): Serverless => {
+export const restore = _.curry((copy: any, serverless: any): Serverless => {
   _.keys(serverless).forEach(key => {
     if (!copy[key]) {
         delete serverless[key];
@@ -64,7 +66,7 @@ const restore = _.curry((copy: any, serverless: any): Serverless => {
   return serverless;
 });
 
-const printServiceHeader = _.curry((serverless: Serverless): Serverless => {
+export const printServiceHeader = _.curry((serverless: Serverless): Serverless => {
   const serviceName = serverless.service.getServiceName();
   const headerLength = 50;
   serverless.cli.log(_.repeat('-', headerLength));
@@ -74,7 +76,7 @@ const printServiceHeader = _.curry((serverless: Serverless): Serverless => {
   return serverless;
 });
 
-const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+export const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
   if (!entryPoint) return serverless;
   if (entryPoint.type === 'shell') {
     executeShellEntryPoint(phase, entryPoint, options, serverless);
@@ -88,18 +90,19 @@ const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoint: Entr
 const executeShellEntryPoint = (phase: LifecyclePhases, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
   const optionExports = _(options).map((opt, key) => `SLS_OPTS_${key}=${JSON.stringify(opt)}`).join('\n'); 
   const shell = `${optionExports}\n${entryPoint.shell}`;
-  const result = execSync(shell, { stdio: 'inherit', encoding: 'utf8' });
-
-  options.shellResults = options.shellResults || {};
-  options.shellResults[serverless.service.getServiceName()][phase] = result;
+  execSync(shell, { stdio: 'inherit', encoding: 'utf8' });
 }
 
 const executeHandlerEntryPoint = async (phase: LifecyclePhases, entryPoint: HandlerEntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
-  const [path, handler] = entryPoint.handler.split('.');
+  const lastIndex = entryPoint.handler.lastIndexOf('.');
+  const [path, handler] = [entryPoint.handler.slice(null, lastIndex), entryPoint.handler.slice(lastIndex + 1)];
   return importDynamic(path)
     .then(module => module[handler](serverless, options, stacks));
 }
 
-export const importDynamic = (path: string) => import(path);
-
-export { reload, deploy, remove, restore, saveStack, printServiceHeader, handleEntryPoint };
+export const importDynamic = async (path: string) => {
+  if (!path.startsWith('/')) {
+    path = path.startsWith('./') ? path.replace('./', cwd() + '/') : cwd() + '/' + path;
+  }
+  return import(path);
+}

@@ -1,12 +1,14 @@
 import AwsProvider from 'serverless/lib/plugins/aws/provider/awsProvider';
 import Serverless from 'serverless';
 import Plugin from 'serverless/lib/classes/Plugin';
-import { toConfig, MultiStackConfig } from './models';
+import { toConfig, MultiStackConfig, StacksConfig, EntryPoint, LifecyclePhases } from './models';
 import _ from 'lodash';
 import './lodash-async';
 import { reload, restore, deploy, saveStack, printServiceHeader, remove, handleEntryPoint } from './utils';
 
 const CONFIG_SECTION = 'multi-stack';
+
+type ServerlessCommand = (sls: Serverless) => Promise<Serverless>;
 
 class MultiStackPlugin implements Plugin {
   readonly serverless: Serverless;
@@ -32,25 +34,20 @@ class MultiStackPlugin implements Plugin {
   }
 
   async deployStacks() {
+    // if (MultiStackPlugin.started) return;
+    // MultiStackPlugin.started = true;
     if (!this.settings) {
       this.serverless.cli.log(`No stacks found. Missing [${CONFIG_SECTION}] section. Skipping multi-stack deploys...`)
       return;
     }
 
-    const stacks = [] as Serverless[];
     const copy = _(this.serverless).cloneDeep();
-    for (const [location, stack] of Object.entries(this.settings.stacks)) {
-      this.options.config = location;
-
-      await _.flowAsync(
-        reload(this.options),
-        printServiceHeader,
-        saveStack(stacks),
-        handleEntryPoint('beforeDeploy', stack.beforeDeploy, this.options, stacks),
-        deploy,
-        handleEntryPoint('afterDeploy', stack.afterDeploy, this.options, stacks),
-      )(this.serverless);
-    }
+    await this.executeCommandPipeline(
+      this.settings.stacks,
+      'beforeDeploy',
+      'afterDeploy',
+      deploy
+    );
 
     this.serverless.cli.log(`Restoring ${copy.service.getServiceName()}...`);
     restore(this.serverless, copy);
@@ -58,26 +55,44 @@ class MultiStackPlugin implements Plugin {
 
   async removeStacks() {
     if (!this.settings) {
-      this.serverless.cli.log(`No stacks found. Missing [${CONFIG_SECTION}] section. Skipping multi-stack deploys...`)
+      this.serverless.cli.log(`No stacks found. Missing [${CONFIG_SECTION}] section. Skipping multi-stack removals...`)
       return;
     }
 
-    const stacks = [] as Serverless[];
-    const copy = _(this.serverless).cloneDeep();
-    for (const [location, stack] of Object.entries(this.settings.stacks).reverse()) {
-      this.options.config = location;
+    const reversedStacks = Object.keys(this.settings.stacks).reduceRight((obj, key) => {
+      obj[key] = this.settings.stacks[key];
+      return obj;
+    }, {} as StacksConfig);
 
-      await _.flowAsync(
-        reload(this.options),
-        printServiceHeader,
-        saveStack(stacks),
-        remove,
-      )(this.serverless);
-    }
+    const copy = _(this.serverless).cloneDeep();
+    await this.executeCommandPipeline(
+      reversedStacks,
+      'beforeRemove',
+      'afterRemove',
+      remove
+    );
 
     this.serverless.cli.log(`Restoring ${copy.service.getServiceName()}...`);
     restore(this.serverless, copy);
   }
+
+  async executeCommandPipeline(stacks: StacksConfig, before: LifecyclePhases, after: LifecyclePhases, cmd: ServerlessCommand) {
+    const savedStacks = [] as Serverless[];
+    let options = { ...this.options };
+    for (const [location, stack] of Object.entries(stacks)) {
+      options = { ...options, ...stack, config: location };
+
+      await _.flowAsync(
+        handleEntryPoint(before, stack[before], options, savedStacks),
+        reload(options),
+        printServiceHeader,
+        saveStack(savedStacks),
+        cmd,
+        handleEntryPoint(after, stack[after], options, savedStacks)
+      )(this.serverless);
+    }
+  }
+
 }
 
 export = MultiStackPlugin;

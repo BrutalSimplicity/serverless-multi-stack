@@ -72,12 +72,15 @@ export async function toConfig(settings: any) : Promise<MultiStackConfig | undef
 
 async function toStackProps(props: any): Promise<StackProps> {
   const stackProps = {} as StackProps;
+  if (!props) return stackProps;
   for (const [key, obj] of Object.entries<any>(props)) {
     stackProps[key] = obj;
     if (obj && LifecyclePhases.includes(key)) {
       if (obj.handler) {
         assert(obj.handler, `[handler] is a requried field for ${key}`);
-        const [path, handler] = obj.handler.split('.');
+        const sliceIndex = obj.handler.lastIndexOf('.')
+        assert(sliceIndex >= 0, '[handler] syntax is invalid should be of the form ./path.handler');
+        const [path, handler] = [obj.handler.slice(null, sliceIndex), obj.handler.slice(sliceIndex+1)];
         const module = await importDynamic(path);
         assert(module, `[handler] unable to find module for ${key}`);
         assert(module[handler], `[handler] unable to resolve module handler for ${key}. Be sure the method has been exported.`);

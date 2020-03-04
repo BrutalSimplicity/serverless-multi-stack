@@ -13,6 +13,14 @@ custom:
       ./stacks/serverless-vpc.yml:
       ./stacks/serverless-gateways.yml:
       ./stacks/serverless-postgres.yml:
+      ./stacks/serverless-bastion.yml:
+        key-pair:
+          key-name: bastion-key
+          public-rsa-key: ~/.ssh/id_rsa.pub
+        beforeDeploy:
+          handler: ./scripts/keypair.createKeyPair
+        afterRemove:
+          handler: ./scripts/keypair.removeKeyPair
 
     regions:
       us-east-1:

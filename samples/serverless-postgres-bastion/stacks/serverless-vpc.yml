@@ -14,7 +14,7 @@ resources:
         CidrBlock: 10.0.0.0/24
         Tags:
           - Key: Name
-            Value: SqsMayhemVpc
+            Value: postgres-vpc
     PrivateSubnetA:
       Type: AWS::EC2::Subnet
       Properties:
@@ -23,7 +23,7 @@ resources:
         CidrBlock: 10.0.0.0/26
         Tags:
           - Key: Name
-            Value: SqsMayhemPrivateSubnetA
+            Value: postgres-vpc-private-subnet-a
     PrivateSubnetB:
       Type: AWS::EC2::Subnet
       Properties:
@@ -32,7 +32,7 @@ resources:
         CidrBlock: 10.0.0.64/26
         Tags:
           - Key: Name
-            Value: SqsMayhemPrivateSubnetB
+            Value: postgres-vpc-private-subnet-b
     PublicSubnetA:
       Type: AWS::EC2::Subnet
       Properties:
@@ -41,7 +41,7 @@ resources:
         CidrBlock: 10.0.0.128/26
         Tags:
           - Key: Name
-            Value: SqsMayhemPublicSubnetA
+            Value: postgres-vpc-public-subnet-a
     PublicSubnetB:
       Type: AWS::EC2::Subnet
       Properties:
@@ -50,7 +50,7 @@ resources:
         CidrBlock: 10.0.0.192/26
         Tags:
           - Key: Name
-            Value: SqsMayhemPublicSubnetB
+            Value: postgres-vpc-public-subnet-b
   
   Outputs:
     VpcId:

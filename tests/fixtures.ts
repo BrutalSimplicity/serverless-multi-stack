@@ -10,14 +10,14 @@ export const multiStack = {
         'serverless.1.yml': {
           setting1: true,
           setting2: false,
-          beforeRemove: {
-            shell: 'echo test'
+          beforeDeploy: {
+            shell: 'echo "shell script executed"'
           }
         },
         'serverless.2.yml': {},
         'serverless.3.yml': {
           afterDeploy: {
-            handler: 'afterDeploy.handler'
+            handler: './tests/afterDeploy.test.handler'
           }
         }
       },
