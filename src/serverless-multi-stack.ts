@@ -1,7 +1,7 @@
 import AwsProvider from 'serverless/lib/plugins/aws/provider/awsProvider';
 import Serverless from 'serverless';
 import Plugin from 'serverless/lib/classes/Plugin';
-import { toConfig, MultiStackConfig, StacksConfig, LifecyclePhases } from './models';
+import { toConfig, MultiStackConfig, StacksConfig, LifecyclePhases, StackConfig } from './models';
 import _ from 'lodash';
 import './lodash-async';
 import { reload, restore, deploy, saveStack, printServiceHeader, remove, handleEntryPoint, cleanOptions } from './utils';
@@ -30,7 +30,7 @@ class MultiStackPlugin implements Plugin {
   }
 
   async configureSettings() {
-    this.settings = await toConfig(this.serverless.service?.custom?.[CONFIG_SECTION]);
+    this.settings = await toConfig(this.serverless);
   }
 
   async deployStacks() {
@@ -42,8 +42,6 @@ class MultiStackPlugin implements Plugin {
     const copy = _(this.serverless).cloneDeep();
     await this.executeCommandPipeline(
       this.settings.stacks,
-      'beforeDeploy',
-      'afterDeploy',
       deploy
     );
 
@@ -78,10 +76,10 @@ class MultiStackPlugin implements Plugin {
     restore(copy, this.serverless);
   }
 
-  async executeCommandPipeline(stacks: StacksConfig, before: LifecyclePhases, after: LifecyclePhases, cmd: ServerlessCommand) {
+  async executeCommandPipeline(stacks: StackConfig[], cmd: ServerlessCommand) {
     const savedStacks = [] as Serverless[];
     let options = { ...this.options };
-    for (const [location, stack] of Object.entries(stacks)) {
+    for (const stack of stacks) {
       options = { ...options, ...stack, config: location };
 
       await _.flowAsync(

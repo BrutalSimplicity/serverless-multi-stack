@@ -122,3 +122,7 @@ export const importDynamic = async (path: string) => {
   }
   return import(path);
 }
+
+export const assertNever = (x: never): never => {
+  throw new Error('Unexpected object: ' + x);
+}
