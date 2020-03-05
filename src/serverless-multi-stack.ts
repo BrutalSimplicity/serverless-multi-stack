@@ -1,10 +1,10 @@
 import AwsProvider from 'serverless/lib/plugins/aws/provider/awsProvider';
 import Serverless from 'serverless';
 import Plugin from 'serverless/lib/classes/Plugin';
-import { toConfig, MultiStackConfig, StacksConfig, EntryPoint, LifecyclePhases } from './models';
+import { toConfig, MultiStackConfig, StacksConfig, LifecyclePhases } from './models';
 import _ from 'lodash';
 import './lodash-async';
-import { reload, restore, deploy, saveStack, printServiceHeader, remove, handleEntryPoint } from './utils';
+import { reload, restore, deploy, saveStack, printServiceHeader, remove, handleEntryPoint, cleanOptions } from './utils';
 
 const CONFIG_SECTION = 'multi-stack';
 
@@ -34,8 +34,6 @@ class MultiStackPlugin implements Plugin {
   }
 
   async deployStacks() {
-    // if (MultiStackPlugin.started) return;
-    // MultiStackPlugin.started = true;
     if (!this.settings) {
       this.serverless.cli.log(`No stacks found. Missing [${CONFIG_SECTION}] section. Skipping multi-stack deploys...`)
       return;
@@ -50,10 +48,14 @@ class MultiStackPlugin implements Plugin {
     );
 
     this.serverless.cli.log(`Restoring ${copy.service.getServiceName()}...`);
-    restore(this.serverless, copy);
+    restore(copy, this.serverless);
   }
 
   async removeStacks() {
+    await this.configureSettings();
+
+    debugger;
+
     if (!this.settings) {
       this.serverless.cli.log(`No stacks found. Missing [${CONFIG_SECTION}] section. Skipping multi-stack removals...`)
       return;
@@ -73,7 +75,7 @@ class MultiStackPlugin implements Plugin {
     );
 
     this.serverless.cli.log(`Restoring ${copy.service.getServiceName()}...`);
-    restore(this.serverless, copy);
+    restore(copy, this.serverless);
   }
 
   async executeCommandPipeline(stacks: StacksConfig, before: LifecyclePhases, after: LifecyclePhases, cmd: ServerlessCommand) {
@@ -84,6 +86,7 @@ class MultiStackPlugin implements Plugin {
 
       await _.flowAsync(
         handleEntryPoint(before, stack[before], options, savedStacks),
+        cleanOptions(options),
         reload(options),
         printServiceHeader,
         saveStack(savedStacks),

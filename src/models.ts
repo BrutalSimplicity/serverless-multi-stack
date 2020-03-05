@@ -44,7 +44,6 @@ export interface MultiStackConfig {
 
 export async function toConfig(settings: any) : Promise<MultiStackConfig | undefined> {
   if (!settings) return undefined;
-  assert(settings.stacks, '[stacks] is a required field');
   assert(settings.regions, '[regions] is a required field');
 
   const stacks = {} as StacksConfig;

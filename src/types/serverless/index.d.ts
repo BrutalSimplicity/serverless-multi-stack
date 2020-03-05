@@ -12,6 +12,7 @@ import Utils = require('./lib/classes/Utils');
 import YamlParser = require('./lib/classes/YamlParser');
 import AwsProvider = require('./lib/plugins/aws/provider/awsProvider');
 import { Commands } from './lib/classes/Plugin';
+import Variables = require('./lib/classes/Variables');
 
 declare namespace Serverless {
     interface Options {
@@ -69,9 +70,7 @@ declare class Serverless {
 
     providers: {};
     utils: Utils;
-    variables: {
-        populateService(options: Serverless.Options): Promise<void>;
-    };
+    variables: Variables;
     yamlParser: YamlParser;
     pluginManager: PluginManager;
 

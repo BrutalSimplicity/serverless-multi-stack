@@ -4,10 +4,14 @@ import _ from 'lodash';
 import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhases } from './models';
 import { execSync } from 'child_process';
 import { cwd } from 'process';
+import Service from 'serverless/lib/classes/Service';
+import Variables from 'serverless/lib/classes/Variables';
 
 export const reload = _.curry(async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Reloading config.....');
   serverless.pluginManager = new PluginManager(serverless);
+  serverless.service = new Service(serverless, {});
+  serverless.variables = new Variables(serverless);
   const service = serverless.service;
   const pluginManager = serverless.pluginManager;
   serverless.processedInput.options = options;
@@ -33,6 +37,18 @@ export const reload = _.curry(async (options: Serverless.Options, serverless: Se
       return service.validate();
     });
   
+  return serverless;
+});
+
+export const cleanOptions = _.curry((options: Serverless.Options, serverless: Serverless) => {
+  if (options.c) {
+    options.config = options.config || options.c;
+    delete options.c;
+  }
+  if (options.r) {
+    options.region = options.region || options.r;
+    delete options.r;
+  }
   return serverless;
 });
 

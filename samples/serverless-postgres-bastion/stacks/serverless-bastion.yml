@@ -58,7 +58,7 @@ resources:
     PostgresBastionHost:
       Type: AWS::EC2::Instance
       Properties:
-        KeyName: ${opt:result.keyName}
+        KeyName: ${opt:result.keyName, ''}
         ImageId: ami-046842448f9e74e7d
         InstanceType: t3a.nano
         Monitoring: true
