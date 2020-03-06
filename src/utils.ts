@@ -1,7 +1,7 @@
 import Serverless, { Options } from 'serverless';
 import PluginManager from 'serverless/lib/classes/PluginManager';
 import _ from 'lodash';
-import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhases } from './models';
+import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhase } from './models';
 import { execSync } from 'child_process';
 import { cwd } from 'process';
 import Service from 'serverless/lib/classes/Service';
@@ -92,7 +92,7 @@ export const printServiceHeader = _.curry((serverless: Serverless): Serverless =
   return serverless;
 });
 
-export const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+export const handleEntryPoint = _.curry(async (phase: LifecyclePhase, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
   if (!entryPoint) return serverless;
   if (entryPoint.type === 'shell') {
     executeShellEntryPoint(phase, entryPoint, options, serverless);
@@ -103,13 +103,13 @@ export const handleEntryPoint = _.curry(async (phase: LifecyclePhases, entryPoin
   return serverless;
 });
 
-const executeShellEntryPoint = (phase: LifecyclePhases, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
+const executeShellEntryPoint = (phase: LifecyclePhase, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
   const optionExports = _(options).map((opt, key) => `SLS_OPTS_${key}=${JSON.stringify(opt)}`).join('\n'); 
   const shell = `${optionExports}\n${entryPoint.shell}`;
   execSync(shell, { stdio: 'inherit', encoding: 'utf8' });
 }
 
-const executeHandlerEntryPoint = async (phase: LifecyclePhases, entryPoint: HandlerEntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+const executeHandlerEntryPoint = async (phase: LifecyclePhase, entryPoint: HandlerEntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
   const lastIndex = entryPoint.handler.lastIndexOf('.');
   const [path, handler] = [entryPoint.handler.slice(null, lastIndex), entryPoint.handler.slice(lastIndex + 1)];
   return importDynamic(path)
