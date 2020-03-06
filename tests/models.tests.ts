@@ -75,6 +75,16 @@ describe('#toConfig', function() {
     await expect(toConfig(serverless)).to.be.rejectedWith(AssertionError);
   })
 
+  it('should fail when handler entrypoint syntax is invalid', async function() {
+    sinon.replace(fs, 'existsSync', () => true);
+    const serverless = getServerlessMock({
+      stacks: { 'a': { 'beforeDeploy': { 'handler': 'blah' } }, 'b': {}, 'c': {} },
+      regions: { 'us-east-1': {}, 'us-west-2': {}, 'us-east-2': {} }
+    });
+    
+    await expect(toConfig(serverless)).to.be.rejectedWith(AssertionError);
+  })
+
   it('should map stack', async function() {
     sinon.replace(fs, 'existsSync', () => true);
     const serverless = getServerlessMock({

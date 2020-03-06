@@ -1,13 +1,13 @@
 import Serverless, { Options } from 'serverless';
 import PluginManager from 'serverless/lib/classes/PluginManager';
 import _ from 'lodash';
-import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhase } from './models';
+import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhase, StackConfig, Command } from './models';
 import { execSync } from 'child_process';
 import { cwd } from 'process';
 import Service from 'serverless/lib/classes/Service';
 import Variables from 'serverless/lib/classes/Variables';
 
-export const reload = _.curry(async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
+export const reload = async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Reloading config.....');
   serverless.pluginManager = new PluginManager(serverless);
   serverless.service = new Service(serverless, {});
@@ -38,9 +38,9 @@ export const reload = _.curry(async (options: Serverless.Options, serverless: Se
     });
   
   return serverless;
-});
+}
 
-export const cleanOptions = _.curry((options: Serverless.Options, serverless: Serverless) => {
+export const cleanOptions = (options: Serverless.Options, serverless: Serverless) => {
   if (options.c) {
     options.config = options.config || options.c;
     delete options.c;
@@ -50,27 +50,27 @@ export const cleanOptions = _.curry((options: Serverless.Options, serverless: Se
     delete options.r;
   }
   return serverless;
-});
+}
 
-export const deploy = _.curry(async (serverless: Serverless): Promise<Serverless> => {
+export const deploy = async (serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Deploying....');
   await serverless.pluginManager.spawn('deploy');
   return serverless;
-});
+}
 
-export const remove = _.curry(async (serverless: Serverless): Promise<Serverless> => {
+export const remove = async (serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Removing....');
   await serverless.pluginManager.spawn('remove');
   return serverless;
-});
+}
 
-export const saveStack = _.curry((stacks: Serverless[], serverless: Serverless): Serverless => {
+export const saveStack = (stacks: Serverless[], serverless: Serverless): Serverless => {
   const copy = _.cloneDeep(serverless);
   stacks.push(copy);
   return serverless;
-})
+}
 
-export const restore = _.curry((copy: any, serverless: any): Serverless => {
+export const restore = (copy: any, serverless: any): Serverless => {
   _.keys(serverless).forEach(key => {
     if (!copy[key]) {
         delete serverless[key];
@@ -80,9 +80,9 @@ export const restore = _.curry((copy: any, serverless: any): Serverless => {
       serverless[key] = copy[key];
   });
   return serverless;
-});
+}
 
-export const printServiceHeader = _.curry((serverless: Serverless): Serverless => {
+export const printServiceHeader = (serverless: Serverless): Serverless => {
   const serviceName = serverless.service.getServiceName();
   const headerLength = 50;
   serverless.cli.log(_.repeat('-', headerLength));
@@ -90,9 +90,10 @@ export const printServiceHeader = _.curry((serverless: Serverless): Serverless =
   serverless.cli.log(_.repeat('-', headerLength));
 
   return serverless;
-});
+}
 
-export const handleEntryPoint = _.curry(async (phase: LifecyclePhase, entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+export const handleEntryPoint = async (cmd: Command, phase: LifecyclePhase, stack: StackConfig, options: Options, stacks: Serverless[], serverless: Serverless) => {
+  const entryPoint = stack.entryPoints?.[cmd]?.[phase];
   if (!entryPoint) return serverless;
   if (entryPoint.type === 'shell') {
     executeShellEntryPoint(phase, entryPoint, options, serverless);
@@ -101,7 +102,7 @@ export const handleEntryPoint = _.curry(async (phase: LifecyclePhase, entryPoint
     await executeHandlerEntryPoint(phase, entryPoint, options, stacks, serverless);
   }
   return serverless;
-});
+}
 
 const executeShellEntryPoint = (phase: LifecyclePhase, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
   const optionExports = _(options).map((opt, key) => `SLS_OPTS_${key}=${JSON.stringify(opt)}`).join('\n'); 

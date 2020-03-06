@@ -38,11 +38,8 @@ export type EntryPoint = HandlerEntryPoint | ShellEntryPoint;
 export type Command = 'deploy' | 'remove';
 
 export type LifecycleEntryPoint = {
-  phase: LifecyclePhase;
-  entryPoint: EntryPoint;
+  [key in LifecyclePhase]?: EntryPoint;
 }
-
-export type StackProps = Properties & LifecycleEntryPoint;
 
 export interface StackParameters {
   [key: string]: any;
@@ -61,12 +58,18 @@ export type StackConfig = {
   isRegional: boolean;
 }
 
-export interface StacksConfig {
-  [stackLocation: string]: StackProps;
-}
-
 export interface MultiStackConfig {
   stacks: StackConfig[];
+}
+
+export const getPhase = (cmd: Command): LifecyclePhase => {
+  switch (cmd) {
+    case 'deploy':
+      return 
+    case 'remove':
+    default:
+      assertNever(cmd);
+  }
 }
 
 export const toConfig = async(serverless: Serverless) : Promise<MultiStackConfig | undefined> => {
@@ -143,11 +146,12 @@ const toStackConfig = async(location: string, props: any, regions: string[], isR
         throw new AssertionError({ message: `[EntryPoint] ${key} is missing one of the following properties: ${VALID_ENTRY_POINTS.join(',')}` });
       }
 
-      stackConfig.entryPoints = {
-        [command]: {
-          phase,
-          entryPoint
-        }
+      stackConfig.entryPoints = stackConfig.entryPoints || {};
+      if (stackConfig.entryPoints[command]) {
+        stackConfig.entryPoints[command][phase] = entryPoint;
+      }
+      else {
+        stackConfig.entryPoints[command] = { [phase]: entryPoint };
       }
     }
     else {
@@ -195,7 +199,7 @@ const mergeAndOrderStacks = (globalStacks: StackConfig[], regionalStacks: StackC
     .value();
 }
 
-export const assertHandler = async (phase: LifecyclePhase, handlerPath: string) => {
+const assertHandler = async (phase: LifecyclePhase, handlerPath: string) => {
   assert(handlerPath, `[handler] is a requried field for ${phase}`);
 
   const sliceIndex = handlerPath.lastIndexOf('.')

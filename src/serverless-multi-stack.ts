@@ -1,7 +1,7 @@
 import AwsProvider from 'serverless/lib/plugins/aws/provider/awsProvider';
 import Serverless from 'serverless';
 import Plugin from 'serverless/lib/classes/Plugin';
-import { toConfig, MultiStackConfig, StacksConfig, StackConfig } from './models';
+import { toConfig, MultiStackConfig, StacksConfig, StackConfig, Command } from './models';
 import _ from 'lodash';
 import './lodash-async';
 import { reload, restore, deploy, saveStack, printServiceHeader, remove, handleEntryPoint, cleanOptions } from './utils';
@@ -76,22 +76,22 @@ class MultiStackPlugin implements Plugin {
     restore(copy, this.serverless);
   }
 
-  async executeCommandPipeline(stacks: StackConfig[], cmd: ServerlessCommand) {
-    // const savedStacks = [] as Serverless[];
-    // let options = { ...this.options };
-    // for (const stack of stacks) {
-    //   options = { ...options, ...stack, config: location };
+  async executeCommandPipeline(cmd: Command, stacks: StackConfig[]) {
+    const savedStacks = [] as Serverless[];
+    let options = { ...this.options };
+    for (const stack of stacks) {
+      options = { ...options, ...stack, config: location };
 
-    //   await _.flowAsync(
-    //     handleEntryPoint(before, stack[before], options, savedStacks),
-    //     cleanOptions(options),
-    //     reload(options),
-    //     printServiceHeader,
-    //     saveStack(savedStacks),
-    //     cmd,
-    //     handleEntryPoint(after, stack[after], options, savedStacks)
-    //   )(this.serverless);
-    // }
+      await _.flowAsync(
+        handleEntryPoint(cmd, before, stack[before], options, savedStacks),
+        cleanOptions(options),
+        reload(options),
+        printServiceHeader,
+        saveStack(savedStacks),
+        cmd,
+        handleEntryPoint(after, stack[after], options, savedStacks)
+      )(this.serverless);
+    }
   }
 
 }
