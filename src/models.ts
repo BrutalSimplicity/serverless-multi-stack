@@ -1,20 +1,17 @@
 import { existsSync } from 'fs';
 import assert, { AssertionError } from 'assert';
 import _ from 'lodash';
-import { importDynamic, assertNever, remove } from './utils';
+import { importDynamic, assertNever } from './utils';
 import Serverless from 'serverless';
-import { MultiStackSchema, RegionsSchema, StacksSchema } from './schema';
+import { MultiStackSchema, StacksSchema, SchemaPhase, SCHEMA_PHASES } from './schema';
 
 export const CUSTOM_SECTION = 'multi-stack';
-export type Subset<T, U extends T> = U;
 
 export const AWS_REGIONS = ['us-east-2', 'us-east-1', 'us-west-1', 'us-west-2', 'ap-east-1', 'ap-south-1', 'ap-northeast-3', 'ap-northeast-2', 'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ca-central-1', 'eu-central-1', 'eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-north-1', 'me-south-1', 'sa-east-1'] as const;
 export type AwsRegion = typeof AWS_REGIONS[number];
 
-export const LIFECYCLE_PHASES = ['beforeDeploy', 'afterDeploy', 'beforeRemove', 'afterRemove'] as const;
+export const LIFECYCLE_PHASES = ['before', 'after'] as const;
 export type LifecyclePhase = typeof LIFECYCLE_PHASES[number];
-export type DeployLifecyclePhase = Subset<LifecyclePhase, 'beforeDeploy' | 'afterDeploy'>
-export type RemoveLifecyclePhase = Subset<LifecyclePhase, 'beforeRemove' | 'afterRemove'>;
 
 export interface Properties {
   [props: string]: any;
@@ -23,9 +20,11 @@ export interface Properties {
 export const VALID_ENTRY_POINTS = ['handler', 'shell'] as const;
 export type ValidEntryPoint = typeof VALID_ENTRY_POINTS[number];
 
+export type Handler = (sls?: Serverless, options?: Serverless.Options, stacks?: Serverless[]) => Promise<void>;
+
 export interface HandlerEntryPoint {
   type: 'handler';
-  handler: string;
+  handler: Handler;
 }
 
 export interface ShellEntryPoint  {
@@ -60,16 +59,6 @@ export type StackConfig = {
 
 export interface MultiStackConfig {
   stacks: StackConfig[];
-}
-
-export const getPhase = (cmd: Command): LifecyclePhase => {
-  switch (cmd) {
-    case 'deploy':
-      return 
-    case 'remove':
-    default:
-      assertNever(cmd);
-  }
 }
 
 export const toConfig = async(serverless: Serverless) : Promise<MultiStackConfig | undefined> => {
@@ -109,7 +98,7 @@ const isRegion = (region: string): region is AwsRegion => {
   return AWS_REGIONS.includes(region as AwsRegion);
 }
 
-const toStackConfig = async(location: string, props: any, regions: string[], isRegional: boolean = false): Promise<StackConfig> => {
+const toStackConfig = async(location: string, props: any, regions: string[], isRegional: boolean = false) => {
   assert(existsSync(location), `unable to locate ${location}`);
   const stackConfig = {
     location,
@@ -124,15 +113,15 @@ const toStackConfig = async(location: string, props: any, regions: string[], isR
     if (key === 'priority') {
       stackConfig.priority = parseInt(obj);
     }
-    else if (isLifecyclePhase(key)) {
+    else if (isSchemaPhase(key)) {
       const command = getCommand(key);
+      const phase = getPhase(key);
       let entryPoint: EntryPoint;
-      const phase = key as LifecyclePhase;
       if (obj.handler) {
-        await assertHandler(phase, obj.handler);
+        const handler = await getHandler(phase, obj.handler);
         entryPoint = {
           type: 'handler',
-          handler: obj.handler
+          handler
         };
       }
       else if (obj.shell) {
@@ -163,12 +152,24 @@ const toStackConfig = async(location: string, props: any, regions: string[], isR
   return stackConfig;
 }
 
-const isLifecyclePhase = (phase: string): phase is LifecyclePhase => {
-  return LIFECYCLE_PHASES.includes(phase as LifecyclePhase);
+const isSchemaPhase = (phase: string): phase is SchemaPhase => {
+  return SCHEMA_PHASES.includes(phase as SchemaPhase);
+}
+
+const getPhase = (schemaPhase: SchemaPhase): LifecyclePhase => {
+  switch (schemaPhase) {
+    case 'beforeRemove':
+    case 'beforeDeploy':
+      return 'before';
+    case 'afterDeploy':
+    case 'afterRemove':
+      return 'after';
+    default: assertNever(schemaPhase);
+  }
 }
 
 const getCommand = (key: string): Command => {
-  const phase = key as LifecyclePhase
+  const phase = key as SchemaPhase
   switch (phase) {
     case 'beforeDeploy':
     case 'afterDeploy':
@@ -199,7 +200,7 @@ const mergeAndOrderStacks = (globalStacks: StackConfig[], regionalStacks: StackC
     .value();
 }
 
-const assertHandler = async (phase: LifecyclePhase, handlerPath: string) => {
+const getHandler = async (phase: LifecyclePhase, handlerPath: string) => {
   assert(handlerPath, `[handler] is a requried field for ${phase}`);
 
   const sliceIndex = handlerPath.lastIndexOf('.')
@@ -209,4 +210,6 @@ const assertHandler = async (phase: LifecyclePhase, handlerPath: string) => {
   const module = await importDynamic(path);
   assert(module, `[handler] unable to find module for ${phase}`);
   assert(module[handler], `[handler] unable to resolve module handler for ${phase}. Be sure the method has been exported.`);
+
+  return module[handler] as Handler;
 }

@@ -14,13 +14,16 @@ export const reload = async (options: Serverless.Options, serverless: Serverless
   serverless.variables = new Variables(serverless);
   const service = serverless.service;
   const pluginManager = serverless.pluginManager;
-  serverless.processedInput.options = options;
+  const slsOptions = serverless.processedInput.options;
+  slsOptions.config = options.config;
+  slsOptions.region = options.region;
+  cleanOptions(slsOptions);
 
   await pluginManager.loadConfigFile()
-    .then(() => service.load(options))
+    .then(() => service.load(slsOptions))
     .then(() => {
-      pluginManager.setCliCommands(serverless.processedInput.commands);
-      pluginManager.setCliOptions(serverless.processedInput.options);
+      pluginManager.setCliCommands(slsOptions);
+      pluginManager.setCliOptions(slsOptions);
       return pluginManager.loadAllPlugins(serverless.service.plugins);
     })
     .then(() => {
@@ -29,18 +32,18 @@ export const reload = async (options: Serverless.Options, serverless: Serverless
       return pluginManager.updateAutocompleteCacheFile();
     })
     .then(() => {
-      return serverless.variables.populateService(options)
+      return serverless.variables.populateService(slsOptions)
     })
     .then(() => {
       service.mergeArrays();
-      service.setFunctionNames(serverless.processedInput.options);
+      service.setFunctionNames(slsOptions);
       return service.validate();
     });
   
   return serverless;
 }
 
-export const cleanOptions = (options: Serverless.Options, serverless: Serverless) => {
+const cleanOptions = (options: Serverless.Options) => {
   if (options.c) {
     options.config = options.config || options.c;
     delete options.c;
@@ -49,7 +52,6 @@ export const cleanOptions = (options: Serverless.Options, serverless: Serverless
     options.region = options.region || options.r;
     delete options.r;
   }
-  return serverless;
 }
 
 export const deploy = async (serverless: Serverless): Promise<Serverless> => {
@@ -92,29 +94,24 @@ export const printServiceHeader = (serverless: Serverless): Serverless => {
   return serverless;
 }
 
-export const handleEntryPoint = async (cmd: Command, phase: LifecyclePhase, stack: StackConfig, options: Options, stacks: Serverless[], serverless: Serverless) => {
-  const entryPoint = stack.entryPoints?.[cmd]?.[phase];
+export const handleEntryPoint = async (entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
   if (!entryPoint) return serverless;
-  if (entryPoint.type === 'shell') {
-    executeShellEntryPoint(phase, entryPoint, options, serverless);
+  switch (entryPoint.type) {
+    case 'handler':
+      await entryPoint.handler(serverless, options, stacks);
+      break;
+    case 'shell':
+      executeShellEntryPoint(entryPoint, options, serverless);
+      break;
+    default:
+      assertNever(entryPoint);
   }
-  else if (entryPoint.type === 'handler') {
-    await executeHandlerEntryPoint(phase, entryPoint, options, stacks, serverless);
-  }
-  return serverless;
 }
 
-const executeShellEntryPoint = (phase: LifecyclePhase, entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
+const executeShellEntryPoint = (entryPoint: ShellEntryPoint, options: Options, serverless: Serverless) => {
   const optionExports = _(options).map((opt, key) => `SLS_OPTS_${key}=${JSON.stringify(opt)}`).join('\n'); 
   const shell = `${optionExports}\n${entryPoint.shell}`;
   execSync(shell, { stdio: 'inherit', encoding: 'utf8' });
-}
-
-const executeHandlerEntryPoint = async (phase: LifecyclePhase, entryPoint: HandlerEntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
-  const lastIndex = entryPoint.handler.lastIndexOf('.');
-  const [path, handler] = [entryPoint.handler.slice(null, lastIndex), entryPoint.handler.slice(lastIndex + 1)];
-  return importDynamic(path)
-    .then(module => module[handler](serverless, options, stacks));
 }
 
 export const importDynamic = async (path: string) => {

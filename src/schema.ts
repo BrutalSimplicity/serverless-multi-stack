@@ -1,3 +1,5 @@
+export const SCHEMA_PHASES = ['beforeDeploy', 'afterDeploy', 'beforeRemove', 'afterRemove'] as const;
+export type SchemaPhase = typeof SCHEMA_PHASES[number];
 
 export interface StacksSchema {
   [stackLocation: string]: {

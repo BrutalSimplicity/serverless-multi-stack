@@ -18,7 +18,7 @@ resources:
     PrivateSubnetA:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: us-west-2-a
+        AvailabilityZone: us-west-2a
         VpcId: !Ref Vpc
         CidrBlock: 10.0.0.0/26
         Tags:
@@ -27,7 +27,7 @@ resources:
     PrivateSubnetB:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: us-west-2-b
+        AvailabilityZone: us-west-2b
         VpcId: !Ref Vpc
         CidrBlock: 10.0.0.64/26
         Tags:
@@ -36,7 +36,7 @@ resources:
     PublicSubnetA:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: us-west-2-a
+        AvailabilityZone: us-west-2a
         VpcId: !Ref Vpc
         CidrBlock: 10.0.0.128/26
         Tags:
@@ -45,7 +45,7 @@ resources:
     PublicSubnetB:
       Type: AWS::EC2::Subnet
       Properties:
-        AvailabilityZone: us-west-2-b
+        AvailabilityZone: us-west-2b
         VpcId: !Ref Vpc
         CidrBlock: 10.0.0.192/26
         Tags:

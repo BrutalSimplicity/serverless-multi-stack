@@ -10,7 +10,6 @@ plugins:
 custom:
   multi-stack:
     stacks:
-      ./stacks/serverless-vpc.yml:
       ./stacks/serverless-gateways.yml:
       ./stacks/serverless-postgres.yml:
       ./stacks/serverless-bastion.yml:
@@ -24,4 +23,8 @@ custom:
 
     regions:
       us-east-1:
+        ./stacks/serverless-vpc.yml:
+          priority: 1
       us-west-2:
+        ./stacks/serverless-vpc-west-2.yml:
+          priority: 1

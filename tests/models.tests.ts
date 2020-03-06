@@ -176,25 +176,26 @@ describe('#toConfig', function() {
   })
 
   it('should map stacks and entrypoint handlers', async function() {
-    const importDynamic = sinon.fake.returns({ handler: () => {} });
+    const handler = sinon.fake();
+    const importDynamic = sinon.fake.returns({ handler });
     const execSync = sinon.fake();
     sinon.replace(fs, 'existsSync', () => true);
     sinon.replace(utils, 'importDynamic', importDynamic);
     sinon.replace(cp, 'execSync', execSync);
 
     const serverless = getServerlessMock({
-      stacks: { 'a': { 'beforeDeploy': { handler: './path.handler' } }, 'b': { 'afterRemove': { 'shell': 'blah' } } },
+      stacks: { 'a': { 'beforeDeploy': { handler: './path.handler' }, 'afterDeploy': { handler: './path.handler' } }, 'b': { 'afterRemove': { 'shell': 'blah' } } },
       regions: { 'us-east-1': { 'a': {}, 'c': {} }, 'us-west-2': { 'b': {} }, 'us-east-2': {} }
     });
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks[0].entryPoints.deploy.phase).to.equal('beforeDeploy');
-    expect(config.stacks[0].entryPoints.deploy.entryPoint.type).to.equal('handler');
-    expect((config.stacks[0].entryPoints.deploy.entryPoint as HandlerEntryPoint).handler).to.equal('./path.handler')
-    expect(config.stacks[1].entryPoints.remove.phase).to.equal('afterRemove');
-    expect(config.stacks[1].entryPoints.remove.entryPoint.type).to.equal('shell');
-    expect((config.stacks[1].entryPoints.remove.entryPoint as ShellEntryPoint).shell).to.equal('blah')
+    expect(config.stacks[0].entryPoints.deploy.before).to.not.be.empty;
+    expect((config.stacks[0].entryPoints.deploy.before as HandlerEntryPoint).handler).to.equal(handler)
+    expect(config.stacks[0].entryPoints.deploy.after).to.not.be.empty;
+    expect((config.stacks[0].entryPoints.deploy.after as HandlerEntryPoint).handler).to.equal(handler)
+    expect(config.stacks[1].entryPoints.remove.after).to.not.be.empty;
+    expect((config.stacks[1].entryPoints.remove.after as ShellEntryPoint).shell).to.equal('blah')
   });
 
 })

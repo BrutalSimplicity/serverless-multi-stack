@@ -18,7 +18,11 @@
             "cwd": "${fileDirname}",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
-            ]
+            ],
+            "skipFiles": [
+                "<node_internals>/**/*.js"
+            ],
+            "smartStep": true
         }
     ]
 }
