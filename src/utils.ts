@@ -6,6 +6,7 @@ import { execSync } from 'child_process';
 import { cwd } from 'process';
 import Service from 'serverless/lib/classes/Service';
 import Variables from 'serverless/lib/classes/Variables';
+import { getServerlessConfigFile } from 'serverless/lib/utils/getServerlessConfigFile';
 
 export const reload = async (options: Serverless.Options, serverless: Serverless): Promise<Serverless> => {
   serverless.cli.log('Reloading config.....');
@@ -18,6 +19,8 @@ export const reload = async (options: Serverless.Options, serverless: Serverless
   slsOptions.config = options.config;
   slsOptions.region = options.region;
   cleanOptions(slsOptions);
+  getServerlessConfigFile.cache.clear();
+
 
   await pluginManager.loadConfigFile()
     .then(() => service.load(slsOptions))
