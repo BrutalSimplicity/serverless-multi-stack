@@ -1,6 +1,6 @@
 import AwsProvider from 'serverless/lib/plugins/aws/provider/awsProvider';
 import Serverless from 'serverless';
-import Plugin from 'serverless/lib/classes/Plugin';
+import Plugin, { Commands } from 'serverless/lib/classes/Plugin';
 import { toConfig, MultiStackConfig, StackConfig, Command } from './models';
 import _ from 'lodash';
 import './lodash-async';
@@ -24,27 +24,38 @@ class MultiStackPlugin implements Plugin {
   readonly provider: AwsProvider;
   readonly options: Serverless.Options;
   readonly hooks: Plugin.Hooks;
+  readonly commands: Commands;
   settings: MultiStackConfig;
-  static started = false;
 
   constructor(serverless: Serverless, options: Serverless.Options) {
     this.serverless = serverless;
     this.provider = serverless.getProvider('aws');
     this.options = options;
+    this.commands = {
+      stacks: {
+        commands: {
+          deploy: {
+            usage: 'Deploy multiple serverless stacks',
+            lifecycleEvents: ['deploy'],
+          },
+          remove: {
+            lifecycleEvents: ['remove']
+          }
+        }
+      }
+    }
     this.hooks = {
-      'before:deploy:deploy': this.configureSettings.bind(this),
-      'after:deploy:deploy': this.deployStacks.bind(this),
-      'before:remove:remove': this.removeStacks.bind(this)
+      'before:stacks:deploy:deploy': this.configureSettings.bind(this),
+      'stacks:deploy:deploy': this.deployStacks.bind(this),
+      'before:stacks:remove:remove': this.removeStacks.bind(this)
     }
   }
 
   async configureSettings() {
-    this.settings = await toConfig(this.serverless);
+    this.settings = await toConfig(this.serverless, this.options);
   }
 
   async deployStacks() {
-    if (MultiStackPlugin.started) return;
-    MultiStackPlugin.started = true;
     if (!this.settings) {
       this.serverless.cli.log(`No stacks found. Missing [${CONFIG_SECTION}] section. Skipping multi-stack deploys...`)
       return;
@@ -76,27 +87,24 @@ class MultiStackPlugin implements Plugin {
     const savedStacks = [] as Serverless[];
     const slsCmd = this.getServerlessCommand(cmd);
     let options = { ...this.options };
-    const regions = _(stacks).flatMap(s => s.regions).uniq().value();
-    if (regions.length > 1) {
-      for (const region of regions) {
-        this.serverless.processedInput.options.region = region;
-        await slsCmd(this.serverless);
-      }
-    }
+    let stackCount = 1;
     for (const stack of stacks) {
       for (const region of stack.regions) {
         const entryPoint = stack.entryPoints?.[cmd];
-        options = { ...options, ...stack, config: stack.location, region };
+        options = { ...options, config: stack.location, region };
 
         await _.flowAsync(
-          handleEntryPoint(entryPoint?.before, options, savedStacks),
           reload(options),
-          printServiceHeader,
+          printServiceHeader(options, stackCount, stacks.length),
           saveStack(savedStacks),
+          handleEntryPoint(entryPoint?.before, options, stack.parameters, savedStacks),
+          (sls) => entryPoint?.before ? reload(options, sls) : sls,
           slsCmd,
-          handleEntryPoint(entryPoint?.after, options, savedStacks),
+          handleEntryPoint(entryPoint?.after, options, stack.parameters, savedStacks),
         )(this.serverless);
       }
+
+      stackCount++;
     }
   }
 

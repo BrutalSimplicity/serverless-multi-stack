@@ -9,6 +9,7 @@ declare namespace Service {
 declare class Service {
     custom: Service.Custom;
     plugins: Plugin[];
+    serviceFilename: string;
 
     provider: {
       compiledCloudFormationTemplate: {

@@ -13,14 +13,14 @@ export type AwsRegion = typeof AWS_REGIONS[number];
 export const LIFECYCLE_PHASES = ['before', 'after'] as const;
 export type LifecyclePhase = typeof LIFECYCLE_PHASES[number];
 
-export interface Properties {
-  [props: string]: any;
+export interface StackParameters {
+  [key: string]: any;
 }
 
 export const VALID_ENTRY_POINTS = ['handler', 'shell'] as const;
 export type ValidEntryPoint = typeof VALID_ENTRY_POINTS[number];
 
-export type Handler = (sls?: Serverless, options?: Serverless.Options, stacks?: Serverless[]) => Promise<void>;
+export type Handler = (sls?: Serverless, options?: Serverless.Options, params?: StackParameters, stacks?: Serverless[]) => Promise<void>;
 
 export interface HandlerEntryPoint {
   type: 'handler';
@@ -40,10 +40,6 @@ export type LifecycleEntryPoint = {
   [key in LifecyclePhase]?: EntryPoint;
 }
 
-export interface StackParameters {
-  [key: string]: any;
-}
-
 export type CommandEntryPoints = {
   [key in Command]?: LifecycleEntryPoint;
 }
@@ -61,17 +57,17 @@ export interface MultiStackConfig {
   stacks: StackConfig[];
 }
 
-export const toConfig = async(serverless: Serverless) : Promise<MultiStackConfig | undefined> => {
+export const toConfig = async(serverless: Serverless, options: Serverless.Options) : Promise<MultiStackConfig | undefined> => {
   const settings = serverless?.service?.custom?.[CUSTOM_SECTION] as MultiStackSchema;
   if (!settings) return undefined;
   assert(settings.regions, '[regions] is a required field');
 
   const regionNames = Object.keys(settings.regions);
-  assertRegions(regionNames);
+  const regions = getValidRegions(regionNames);
 
-  const stacks = [] as StackConfig[];
+  let stacks = [] as StackConfig[];
   for (const [location, stack] of Object.entries(settings.stacks)) {
-    stacks.push(await toStackConfig(location, stack, regionNames));
+    stacks.push(await toStackConfig(location, stack, regions));
   }
   
   const regionalStacks = [] as StackConfig[];
@@ -83,15 +79,33 @@ export const toConfig = async(serverless: Serverless) : Promise<MultiStackConfig
     }
   }
 
+  stacks = mergeAndOrderStacks(stacks, regionalStacks);
+  stacks.unshift({
+    location: options.config || options.c || serverless.service.serviceFilename,
+    regions,
+    parameters: {},
+    priority: -1,
+    isRegional: false,
+    entryPoints: {}
+  });
+
+
   return {
-    stacks: mergeAndOrderStacks(stacks, regionalStacks)
-  }
+    stacks
+  };
 }
 
-const assertRegions = (regions: string[]) => {
+const getValidRegions = (regions: string[]): AwsRegion[] => {
+  const validRegions = [] as AwsRegion[];
   for (const region of regions) {
-    assert(isRegion(region), `[region] invalid region specified: ${region}`);
+    if (isRegion(region)) {
+      validRegions.push(region);
+    }
+    else {
+      throw new AssertionError({ message: `[region] invalid region specified: ${region}` });
+    }
   }
+  return validRegions;
 }
 
 const isRegion = (region: string): region is AwsRegion => {

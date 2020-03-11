@@ -2,10 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const util = require('util');
 
-async function createKeyPair(serverless, options, stacks) {
+async function createKeyPair(serverless, options, params) {
   const provider = serverless.getProvider('aws');
-  let publicKeyPath = options['key-pair']['public-rsa-key'];
-  const keyName = options['key-pair']['key-name'];
+  let publicKeyPath = params['key-pair']['public-rsa-key'];
+  const keyName = params['key-pair']['key-name'];
   if (!keyName || !publicKeyPath)
     return;
 
@@ -13,7 +13,7 @@ async function createKeyPair(serverless, options, stacks) {
   const keyMaterial = fs.readFileSync(publicKeyPath, { encoding: 'utf8' })
 
   try {
-    await provider.request('EC2', 'importKeyPair', {
+    const response = await provider.request('EC2', 'importKeyPair', {
       KeyName: keyName,
       PublicKeyMaterial: keyMaterial
     });
@@ -23,10 +23,7 @@ async function createKeyPair(serverless, options, stacks) {
     }
   }
 
-  // needs to be flattened if you want it to be resolved
-  // by the sls stack
-  options['result.keyName'] = keyName;
-
+  process.env['KEY_PAIR_NAME'] = keyName;
   serverless.cli.log(`Key pair created: ${keyName}`);
   if (process.env.DEBUG) {
     serverless.cli.log(`[DEBUG] keyMaterials >>>>> ${keyMaterial}`);
@@ -34,8 +31,8 @@ async function createKeyPair(serverless, options, stacks) {
   }
 }
 
-async function removeKeyPair(serverless, options, stacks) {
-  const keyName = options['key-pair']['key-name'];
+async function removeKeyPair(serverless, options, params) {
+  const keyName = params['key-pair']['key-name'];
   if (!keyName) return;
 
   const provider = serverless.getProvider('aws');

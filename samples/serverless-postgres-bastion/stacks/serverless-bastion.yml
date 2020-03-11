@@ -17,6 +17,12 @@ custom:
     RdsSecurityGroupId: ${cf:serverless-postgres-bastion-postgres-${self:custom.stage}.RdsSecurityGroupId}
 
 resources:
+  Mappings:
+    RegionMap:
+      us-east-1:
+        AMI: "ami-046842448f9e74e7d"
+      us-west-2:
+        AMI: "ami-0edf3b95e26a682df"
   Resources:
     BastionHostSecurityGroup:
       Type: AWS::EC2::SecurityGroup
@@ -58,8 +64,8 @@ resources:
     PostgresBastionHost:
       Type: AWS::EC2::Instance
       Properties:
-        KeyName: ${opt:result.keyName, ''}
-        ImageId: ami-046842448f9e74e7d
+        KeyName: ${env:KEY_PAIR_NAME, ''}
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI]
         InstanceType: t3a.nano
         Monitoring: true
         SubnetId: ${self:custom.vpc.PublicSubnetA}

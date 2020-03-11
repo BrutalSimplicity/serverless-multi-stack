@@ -1,7 +1,7 @@
 import Serverless, { Options } from 'serverless';
 import PluginManager from 'serverless/lib/classes/PluginManager';
 import _ from 'lodash';
-import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhase, StackConfig, Command } from './models';
+import { EntryPoint, ShellEntryPoint, HandlerEntryPoint, LifecyclePhase, StackConfig, Command, StackParameters } from './models';
 import { execSync } from 'child_process';
 import { cwd } from 'process';
 import Service from 'serverless/lib/classes/Service';
@@ -87,25 +87,25 @@ export const restore = (copy: any, serverless: any): Serverless => {
   return serverless;
 }
 
-export const printServiceHeader = (serverless: Serverless): Serverless => {
+export const printServiceHeader = (options: Serverless.Options, stackCount: number, numStacks: number, serverless: Serverless): Serverless => {
   const serviceName = serverless.service.getServiceName();
   const headerLength = 50;
   serverless.cli.log(_.repeat('-', headerLength));
-  serverless.cli.log(serviceName);
+  serverless.cli.log(`${serviceName} - ${options.region} (${stackCount}/${numStacks})`);
   serverless.cli.log(_.repeat('-', headerLength));
 
   return serverless;
 }
 
-export const handleEntryPoint = async (entryPoint: EntryPoint, options: Options, stacks: Serverless[], serverless: Serverless) => {
+export const handleEntryPoint = async (entryPoint: EntryPoint, options: Options, params: StackParameters, stacks: Serverless[], serverless: Serverless) => {
   if (!entryPoint) return serverless;
   switch (entryPoint.type) {
     case 'handler':
-      await entryPoint.handler(serverless, options, stacks);
-      break;
+      await entryPoint.handler(serverless, options, params, stacks);
+      return serverless;
     case 'shell':
       executeShellEntryPoint(entryPoint, options, serverless);
-      break;
+      return serverless;
     default:
       assertNever(entryPoint);
   }

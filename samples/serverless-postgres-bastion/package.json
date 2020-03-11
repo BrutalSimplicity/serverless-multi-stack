@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "deploy": "sls deploy -v",
-    "remove": "sls remove -v"
+    "deploy": "sls stacks deploy -v",
+    "remove": "sls stacks remove -v"
   },
   "devDependencies": {
     "serverless": "^1.64.0",
