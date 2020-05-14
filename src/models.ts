@@ -57,7 +57,7 @@ export interface MultiStackConfig {
   stacks: StackConfig[];
 }
 
-export const toConfig = async(serverless: Serverless, options: Serverless.Options) : Promise<MultiStackConfig | undefined> => {
+export const toConfig = async(serverless: Serverless, options?: Serverless.Options) : Promise<MultiStackConfig | undefined> => {
   const settings = serverless?.service?.custom?.[CUSTOM_SECTION] as MultiStackSchema;
   if (!settings) return undefined;
   assert(settings.regions, '[regions] is a required field');
@@ -81,7 +81,7 @@ export const toConfig = async(serverless: Serverless, options: Serverless.Option
 
   stacks = mergeAndOrderStacks(stacks, regionalStacks);
   stacks.unshift({
-    location: options.config || options.c || serverless.service.serviceFilename,
+    location: options?.config || options?.c || serverless.service.serviceFilename,
     regions,
     parameters: {},
     priority: -1,

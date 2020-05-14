@@ -93,11 +93,12 @@ describe('#toConfig', function() {
     });
 
     const config = await toConfig(serverless);
+    console.log(config)
 
-    expect(config.stacks[0].location).to.equal('a');
-    expect(config.stacks[1].location).to.equal('b');
-    expect(config.stacks[0].regions).to.have.members(['us-east-1', 'us-west-2'])
+    expect(config.stacks[1].location).to.equal('a');
+    expect(config.stacks[2].location).to.equal('b');
     expect(config.stacks[1].regions).to.have.members(['us-east-1', 'us-west-2'])
+    expect(config.stacks[2].regions).to.have.members(['us-east-1', 'us-west-2'])
   })
 
   it('should map stack with properties', async function() {
@@ -109,8 +110,8 @@ describe('#toConfig', function() {
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks[0].parameters.prop1).to.be.true;
-    expect(config.stacks[0].parameters.prop2).to.be.true;
+    expect(config.stacks[1].parameters.prop1).to.be.true;
+    expect(config.stacks[1].parameters.prop2).to.be.true;
   })
 
   it('should map and order stacks by priority', async function() {
@@ -122,9 +123,9 @@ describe('#toConfig', function() {
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks.length).to.equal(4);
-    expect(config.stacks[0].location).to.equals('d');
-    expect(config.stacks[1].location).to.equals('c');
+    expect(config.stacks.length).to.equal(5);
+    expect(config.stacks[1].location).to.equals('d');
+    expect(config.stacks[2].location).to.equals('c');
   })
 
   it('should map global and regional stacks', async function() {
@@ -136,15 +137,15 @@ describe('#toConfig', function() {
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks.length).to.equal(5);
-    expect(config.stacks[0].location).to.equal('a');
-    expect(config.stacks[1].location).to.equal('b');
-    expect(config.stacks[2].location).to.equal('c');
-    expect(config.stacks[2].isRegional).to.be.true;
-    expect(config.stacks[3].location).to.equal('d');
+    expect(config.stacks.length).to.equal(6);
+    expect(config.stacks[1].location).to.equal('a');
+    expect(config.stacks[2].location).to.equal('b');
+    expect(config.stacks[3].location).to.equal('c');
     expect(config.stacks[3].isRegional).to.be.true;
-    expect(config.stacks[4].location).to.equal('e');
+    expect(config.stacks[4].location).to.equal('d');
     expect(config.stacks[4].isRegional).to.be.true;
+    expect(config.stacks[5].location).to.equal('e');
+    expect(config.stacks[5].isRegional).to.be.true;
   })
 
   it('should allow regional stacks to override global regions', async function() {
@@ -156,9 +157,9 @@ describe('#toConfig', function() {
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks.length).to.equal(5);
-    expect(config.stacks[0].regions).to.not.have.members(['us-east-1'])
-    expect(config.stacks[1].regions).to.not.have.members(['us-west-2'])
+    expect(config.stacks.length).to.equal(6);
+    expect(config.stacks[1].regions).to.not.have.members(['us-east-1'])
+    expect(config.stacks[2].regions).to.not.have.members(['us-west-2'])
   })
 
   it('should allow regional stacks to override global regions', async function() {
@@ -170,9 +171,9 @@ describe('#toConfig', function() {
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks.length).to.equal(5);
-    expect(config.stacks[0].regions).to.not.have.members(['us-east-1'])
-    expect(config.stacks[1].regions).to.not.have.members(['us-west-2'])
+    expect(config.stacks.length).to.equal(6);
+    expect(config.stacks[1].regions).to.not.have.members(['us-east-1'])
+    expect(config.stacks[2].regions).to.not.have.members(['us-west-2'])
   })
 
   it('should map stacks and entrypoint handlers', async function() {
@@ -190,12 +191,12 @@ describe('#toConfig', function() {
 
     const config = await toConfig(serverless);
 
-    expect(config.stacks[0].entryPoints.deploy.before).to.not.be.empty;
-    expect((config.stacks[0].entryPoints.deploy.before as HandlerEntryPoint).handler).to.equal(handler)
-    expect(config.stacks[0].entryPoints.deploy.after).to.not.be.empty;
-    expect((config.stacks[0].entryPoints.deploy.after as HandlerEntryPoint).handler).to.equal(handler)
-    expect(config.stacks[1].entryPoints.remove.after).to.not.be.empty;
-    expect((config.stacks[1].entryPoints.remove.after as ShellEntryPoint).shell).to.equal('blah')
+    expect(config.stacks[1].entryPoints.deploy.before).to.not.be.empty;
+    expect((config.stacks[1].entryPoints.deploy.before as HandlerEntryPoint).handler).to.equal(handler)
+    expect(config.stacks[1].entryPoints.deploy.after).to.not.be.empty;
+    expect((config.stacks[1].entryPoints.deploy.after as HandlerEntryPoint).handler).to.equal(handler)
+    expect(config.stacks[2].entryPoints.remove.after).to.not.be.empty;
+    expect((config.stacks[2].entryPoints.remove.after as ShellEntryPoint).shell).to.equal('blah')
   });
 
 })

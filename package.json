@@ -33,7 +33,8 @@
     "typescript": "^3.7.5"
   },
   "dependencies": {
-    "loadash": "^1.0.0"
+    "loadash": "^1.0.0",
+    "np": "^6.2.3"
   },
   "files": [
     "dist",

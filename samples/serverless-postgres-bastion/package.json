@@ -8,9 +8,12 @@
     "remove": "sls stacks remove -v"
   },
   "devDependencies": {
-    "serverless": "^1.64.0",
+    "serverless": "^1.70.1",
     "serverless-multi-stack": "file:../../"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "aws-assume": "^0.1.7"
+  }
 }
